@@ -2,12 +2,13 @@
 
 ## Current State
 
-**Project Status**: ✅ Foundation scaffolded — ready for feature development
+**Project Status**: ✅ Foundation scaffolded + web preview fixed — ready for feature development
 
 The project has been converted from a Next.js template to a React Native / Expo 52 app called **Covenant**, a Christian marriage companion app.
 
 ## Recently Completed
 
+- [x] Fixed web preview: added missing assets/, expo-env.d.ts, react-native-web, react-dom
 - [x] Replaced Next.js template with Expo 52 + React Native 0.76 setup
 - [x] Installed all required dependencies (expo-router, fonts, supabase, notifications, media, storage)
 - [x] Created `constants/colours.ts` with full brand palette
