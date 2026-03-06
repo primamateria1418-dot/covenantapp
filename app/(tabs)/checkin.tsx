@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colours } from '@/constants/colours';
 import { supabase, getProfile, getSession, getCheckInAnswersForInsights, getCheckInCount, getLeaderboard, getCoupleWithChurch, updateLeaderboardOptIn } from '@/lib/supabase';
-import { scheduleWeeklyReminder, cancelAllNotifications } from '@/lib/notifications';
+import { scheduleWeeklyCheckinReminder, cancelAllScheduledNotifications } from '@/lib/notifications';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────────
 
@@ -442,9 +442,10 @@ export default function CheckInScreen() {
       
       // Schedule or cancel notifications
       if (notificationEnabled) {
-        await scheduleWeeklyReminder(notificationDay, notificationTime);
+        const [hour, minute] = notificationTime.split(':').map(Number);
+        await scheduleWeeklyCheckinReminder({ enabled: true, day: notificationDay, hour, minute });
       } else {
-        await cancelAllNotifications();
+        await cancelAllScheduledNotifications();
       }
       
       setShowNotificationModal(false);

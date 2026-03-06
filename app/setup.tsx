@@ -15,7 +15,7 @@ import {
 import { router } from 'expo-router';
 import { Colours } from '@/constants/colours';
 import { getSession, upsertProfile, generateCoupleCode } from '@/lib/supabase';
-import { registerForPushNotificationsAsync, scheduleDailyCheckinReminder } from '@/lib/notifications';
+import { registerForPushNotificationsAsync, scheduleWeeklyCheckinReminder } from '@/lib/notifications';
 
 export default function SetupScreen() {
   const colorScheme = useColorScheme();
@@ -40,8 +40,8 @@ export default function SetupScreen() {
       
       if (token) {
         setNotificationStatus('granted');
-        // Schedule the daily reminder
-        await scheduleDailyCheckinReminder(8, 0);
+        // Schedule the weekly reminder
+        await scheduleWeeklyCheckinReminder({ enabled: true, day: 0, hour: 19, minute: 0 });
         return true;
       } else {
         setNotificationStatus('denied');
