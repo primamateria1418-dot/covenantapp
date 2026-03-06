@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { router, Link } from 'expo-router';
 import { Colours } from '@/constants/colours';

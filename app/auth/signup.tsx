@@ -59,7 +59,7 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      const { data, error: authError } = await signUp(email.trim(), password);
+      const { error: authError } = await signUp(email.trim(), password);
 
       if (authError) {
         setError(authError.message);

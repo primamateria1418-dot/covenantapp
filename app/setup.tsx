@@ -55,7 +55,7 @@ export default function SetupScreen() {
       }
 
       router.replace('/(tabs)/checkin');
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to save your profile. Please try again.');
     } finally {
       setLoading(false);
