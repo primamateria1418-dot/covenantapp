@@ -9,6 +9,7 @@ The project has been converted from a Next.js template to a React Native / Expo 
 ## Recently Completed
 
 - [x] Fixed web preview: added missing assets/, expo-env.d.ts, react-native-web, react-dom
+- [x] Fixed ESLint config: replaced incompatible flat config with .eslintrc.js, fixed 3 unused variable errors
 - [x] Replaced Next.js template with Expo 52 + React Native 0.76 setup
 - [x] Installed all required dependencies (expo-router, fonts, supabase, notifications, media, storage)
 - [x] Created `constants/colours.ts` with full brand palette
@@ -105,5 +106,6 @@ Active colour: `#6b3322` (brownWarm). Inactive: grey.
 
 | Date | Changes |
 |------|---------|
+| 2026-03-06 | Fixed ESLint config issues — replaced incompatible flat config with .eslintrc.js, fixed 3 unused variable errors in login.tsx, signup.tsx, setup.tsx |
 | 2026-03-06 | Bootstrapped Covenant app — full Expo/RN scaffold with all screens, navigation, dark mode, TypeScript |
 | 2026-03-06 | Implemented full Supabase Auth — login, signup, forgot password, session check, rate limiting, sign out, setup profile save, privacy/terms screens |
