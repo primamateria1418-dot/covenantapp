@@ -179,6 +179,36 @@ export type Database = {
           read_at?: string | null;
         };
       };
+      // ─── Check-in Answers ─────────────────────────────────────────────
+      checkin_answers: {
+        Row: {
+          id: string;
+          couple_id: string;
+          week_number: number;
+          q1: string;
+          q2: string;
+          q3: string;
+          q4: string;
+          q5_goal: string | null;
+          submitted_at: string;
+        };
+        Insert: {
+          couple_id: string;
+          week_number: number;
+          q1: string;
+          q2: string;
+          q3: string;
+          q4: string;
+          q5_goal?: string | null;
+        };
+        Update: {
+          q1?: string;
+          q2?: string;
+          q3?: string;
+          q4?: string;
+          q5_goal?: string | null;
+        };
+      };
       // ─── Time Capsules ───────────────────────────────────────────
       time_capsules: {
         Row: {
@@ -209,6 +239,8 @@ export type Database = {
           name2: string;
           anniversary: string | null;
           couple_code: string;
+          church_id: string | null;
+          leaderboard_optin: boolean;
           premium: boolean;
           premium_expiry: string | null;
           created_at: string;
@@ -220,12 +252,16 @@ export type Database = {
           name2: string;
           anniversary: string;
           couple_code: string;
+          church_id?: string | null;
+          leaderboard_optin?: boolean;
           premium?: boolean;
         };
         Update: {
           user_id_2?: string | null;
           name2?: string;
           anniversary?: string;
+          church_id?: string | null;
+          leaderboard_optin?: boolean;
           premium?: boolean;
           premium_expiry?: string | null;
         };
@@ -556,4 +592,85 @@ export async function updateGoalOutcome(goalId: string, outcome: 'achieved' | 'p
     .select()
     .single();
   return { goal: data as MonthlyGoal | null, error };
+}
+
+// ─── Check-in Answers for Insights ─────────────────────────────────────────────
+
+export type CheckInAnswer = Database['public']['Tables']['checkin_answers']['Row'];
+
+export async function getCheckInAnswersForInsights(coupleId: string, weeksBack: number = 8) {
+  const { data, error } = await supabase
+    .from('checkin_answers')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .order('submitted_at', { ascending: false })
+    .limit(weeksBack);
+  return { answers: data as CheckInAnswer[] | null, error };
+}
+
+export async function getCheckInCount(coupleId: string) {
+  const { count, error } = await supabase
+    .from('checkin_answers')
+    .select('*', { count: 'exact', head: true })
+    .eq('couple_id', coupleId);
+  return { count: count || 0, error };
+}
+
+// ─── Leaderboard Helpers ─────────────────────────────────────────────────────────
+
+export type LeaderboardEntry = {
+  couple_id: string;
+  name1: string;
+  name2: string;
+  current_streak: number;
+};
+
+export async function getLeaderboard(churchId: string) {
+  // Get couples in this church with leaderboard enabled, join with streaks
+  const { data, error } = await supabase
+    .from('couples')
+    .select(`
+      id,
+      name1,
+      name2,
+      streaks (current_streak)
+    `)
+    .eq('church_id', churchId)
+    .eq('leaderboard_optin', true)
+    .order('streaks.current_streak', { ascending: false })
+    .limit(20);
+  
+  if (error) return { entries: null, error };
+  
+  // Transform data
+  const entries: LeaderboardEntry[] = (data || []).map((row) => ({
+    couple_id: row.id,
+    name1: row.name1,
+    name2: row.name2,
+    current_streak: row.streaks?.current_streak || 0,
+  })) as LeaderboardEntry[];
+  
+  return { entries, error: null };
+}
+
+export async function updateLeaderboardOptIn(coupleId: string, optIn: boolean) {
+  const { data, error } = await supabase
+    .from('couples')
+    .update({ leaderboard_optin: optIn })
+    .eq('id', coupleId)
+    .select()
+    .single();
+  return { couple: data, error };
+}
+
+export async function getCoupleWithChurch(coupleId: string) {
+  const { data, error } = await supabase
+    .from('couples')
+    .select(`
+      *,
+      churches (name)
+    `)
+    .eq('id', coupleId)
+    .single();
+  return { couple: data, error };
 }

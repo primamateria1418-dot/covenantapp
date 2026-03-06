@@ -14,7 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colours } from '@/constants/colours';
-import { supabase, getProfile, getSession } from '@/lib/supabase';
+import { supabase, getProfile, getSession, getCheckInAnswersForInsights, getCheckInCount, getLeaderboard, getCoupleWithChurch, updateLeaderboardOptIn } from '@/lib/supabase';
 import { scheduleWeeklyReminder, cancelAllNotifications } from '@/lib/notifications';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────────
@@ -28,6 +28,14 @@ interface Profile {
   notification_enabled: boolean | null;
   notification_time: string | null;
   notification_day: number | null;
+}
+
+interface CoupleInfo {
+  id: string;
+  church_id: string | null;
+  leaderboard_optin: boolean;
+  premium: boolean;
+  church_name?: string;
 }
 
 interface Streak {
@@ -122,6 +130,69 @@ function getMilestoneMessage(streak: number): string | null {
   return milestones[streak as keyof typeof milestones] || null;
 }
 
+// ─── Growth Insights Generator ──────────────────────────────────────────────────
+
+interface InsightResult {
+  text: string;
+  scripture?: string;
+}
+
+function generateInsight(answers: { q1: string; q2: string; q3: string; q4: string }[]): InsightResult | null {
+  if (answers.length < 8) return null;
+  
+  const combinedAnswers = answers.map(a => 
+    `${a.q1 || ''} ${a.q2 || ''} ${a.q3 || ''} ${a.q4 || ''}`.toLowerCase()
+  );
+  
+  // Count keyword occurrences
+  const countKeyword = (keyword: string) => 
+    combinedAnswers.filter(a => a.includes(keyword)).length;
+  
+  const timeCount = countKeyword('time') + countKeyword('together') + countKeyword('date');
+  const prayerCount = countKeyword('pray') + countKeyword('prayer') + countKeyword('god') + countKeyword('faith');
+  const workStressCount = countKeyword('work') + countKeyword('stress') + countKeyword('busy') + countKeyword('tired');
+  const financeCount = countKeyword('money') + countKeyword('finances') + countKeyword('financial') + countKeyword('budget');
+  const emptyQ2Count = answers.filter(a => !a.q2 || a.q2.trim() === '').length;
+  
+  // Generate insight based on patterns
+  if (timeCount >= 3) {
+    return {
+      text: "Quality time comes up often in your check-ins. It seems to matter deeply to both of you.",
+    };
+  }
+  
+  if (prayerCount >= 4) {
+    return {
+      text: "You frequently pray for each other's specific needs. That's a beautiful act of faithfulness.",
+    };
+  }
+  
+  if (workStressCount >= 3) {
+    return {
+      text: "Work pressure has come up a lot recently. The Work & Stress scripture guide might help.",
+      scripture: "Matthew 6:25-34 - Do not worry about your life",
+    };
+  }
+  
+  if (financeCount >= 2) {
+    return {
+      text: "Financial conversations seem important for you. The Finances scripture guide has 10 verses on this.",
+      scripture: "Philippians 4:19 - My God will supply every need",
+    };
+  }
+  
+  if (emptyQ2Count >= 4) {
+    return {
+      text: "You both tend to hold things close. What would it look like to share one more thing?",
+    };
+  }
+  
+  // Default insight
+  return {
+    text: "You've been consistent in your check-ins. That's a testament to your commitment to each other.",
+  };
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CheckInScreen() {
@@ -147,6 +218,13 @@ export default function CheckInScreen() {
   // Animations
   const floatAnim = useRef(new Animated.Value(0)).current;
   const confettiAnim = useRef(new Animated.Value(0)).current;
+  
+  // Growth Insights & Leaderboard state
+  const [insight, setInsight] = useState<InsightResult | null>(null);
+  const [checkInCount, setCheckInCount] = useState(0);
+  const [coupleInfo, setCoupleInfo] = useState<CoupleInfo | null>(null);
+  const [leaderboard, setLeaderboard] = useState<{ couple_id: string; name1: string; name2: string; current_streak: number }[]>([]);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
   
   // Colors
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
@@ -241,6 +319,43 @@ export default function CheckInScreen() {
         
         if (historyData) {
           setHistory(historyData);
+        }
+        
+        // Load couple info for premium/church features
+        if (profileData.couple_id) {
+          const { couple } = await getCoupleWithChurch(profileData.couple_id);
+          if (couple) {
+            setCoupleInfo({
+              id: couple.id,
+              church_id: couple.church_id,
+              leaderboard_optin: couple.leaderboard_optin || false,
+              premium: couple.premium || false,
+              church_name: couple.churches?.name,
+            });
+            
+            // Load check-in count for insights
+            const { count } = await getCheckInCount(profileData.couple_id);
+            setCheckInCount(count || 0);
+            
+            // Generate insight if 8+ check-ins
+            if (count && count >= 8) {
+              const { answers } = await getCheckInAnswersForInsights(profileData.couple_id, 8);
+              if (answers) {
+                const generatedInsight = generateInsight(
+                  answers.map(a => ({ q1: a.q1 || '', q2: a.q2 || '', q3: a.q3 || '', q4: a.q4 || '' }))
+                );
+                setInsight(generatedInsight);
+              }
+            }
+            
+            // Load leaderboard if church linked
+            if (couple.church_id && couple.leaderboard_optin) {
+              const { entries } = await getLeaderboard(couple.church_id);
+              if (entries) {
+                setLeaderboard(entries);
+              }
+            }
+          }
         }
       }
     } catch (error) {
@@ -368,6 +483,34 @@ export default function CheckInScreen() {
   
   function handleAddPrayer() {
     router.push('/(tabs)/prayer');
+  }
+  
+  async function handleToggleLeaderboard() {
+    if (!coupleInfo?.id) return;
+    
+    try {
+      const newOptIn = !coupleInfo.leaderboard_optin;
+      await updateLeaderboardOptIn(coupleInfo.id, newOptIn);
+      setCoupleInfo(prev => prev ? { ...prev, leaderboard_optin: newOptIn } : null);
+      
+      // Reload leaderboard if enabling
+      if (newOptIn && coupleInfo.church_id) {
+        const { entries } = await getLeaderboard(coupleInfo.church_id);
+        if (entries) setLeaderboard(entries);
+      } else if (!newOptIn) {
+        setLeaderboard([]);
+      }
+      
+      Alert.alert(
+        newOptIn ? 'Leaderboard Enabled' : 'Leaderboard Disabled',
+        newOptIn 
+          ? 'Your streak will now show in your church community! 🙏' 
+          : 'Your streak is now hidden from the community.'
+      );
+    } catch (error) {
+      console.error('Error toggling leaderboard:', error);
+      Alert.alert('Error', 'Failed to update setting.');
+    }
   }
   
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -588,6 +731,86 @@ export default function CheckInScreen() {
             )}
           </View>
         )}
+        
+        {/* Growth Insights Section - Premium, 8+ check-ins */}
+        {checkInCount >= 8 && (
+          <View style={styles.insightsSection}>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>📊 Growth Insights</Text>
+            
+            {coupleInfo?.premium ? (
+              <View style={[styles.insightCard, { backgroundColor: cardBg }]}>
+                <Text style={[styles.insightLabel, { color: Colours.gold }]}>What we've noticed about your marriage</Text>
+                <Text style={[styles.insightText, { color: textColor }]}>
+                  {insight?.text || 'Keep checking in to unlock personalized insights about your marriage journey together.'}
+                </Text>
+                {insight?.scripture && (
+                  <View style={styles.insightScripture}>
+                    <Text style={[styles.insightScriptureText, { color: Colours.gold }]}>
+                      📖 {insight.scripture}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={[styles.insightTeaser, { backgroundColor: cardBg }]}
+                onPress={() => setShowPaywallModal(true)}
+              >
+                <Text style={[styles.insightTeaserText, { color: textColor }]}>
+                  🔒 Unlock Growth Insights
+                </Text>
+                <Text style={[styles.insightTeaserSub, { color: subColor }]}>
+                  After 8+ check-ins, get personalized insights about your marriage.
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        
+        {/* Community Leaderboard - Church + Opt-in only */}
+        {coupleInfo?.church_id && (
+          <View style={styles.leaderboardSection}>
+            <Text style={[styles.sectionTitle, { color: textColor }]}>🙏 Faithful marriages in your church</Text>
+            
+            {/* Opt-in toggle */}
+            <TouchableOpacity 
+              style={[styles.leaderboardToggle, { backgroundColor: cardBg }]}
+              onPress={handleToggleLeaderboard}
+            >
+              <Text style={[styles.leaderboardToggleText, { color: textColor }]}>
+                {coupleInfo.leaderboard_optin ? '✅ Showing in leaderboard' : '⬜ Not shown in leaderboard'}
+              </Text>
+              <Text style={[styles.leaderboardToggleSub, { color: subColor }]}>
+                Tap to {coupleInfo.leaderboard_optin ? 'hide' : 'show'} your streak
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Leaderboard list */}
+            {coupleInfo.leaderboard_optin && leaderboard.length > 0 && (
+              <View style={[styles.leaderboardList, { backgroundColor: cardBg }]}>
+                {leaderboard.slice(0, 5).map((entry, index) => (
+                  <View key={entry.couple_id} style={styles.leaderboardItem}>
+                    <Text style={[styles.leaderboardRank, { color: index === 0 ? Colours.gold : subColor }]}>
+                      {index + 1}.
+                    </Text>
+                    <Text style={[styles.leaderboardNames, { color: textColor }]}>
+                      {entry.name1} & {entry.name2}
+                    </Text>
+                    <Text style={[styles.leaderboardStreak, { color: Colours.gold }]}>
+                      🔥 {entry.current_streak}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            
+            {!coupleInfo.leaderboard_optin && (
+              <Text style={[styles.leaderboardOptInHint, { color: subColor }]}>
+                Enable the toggle above to join your church community! 🙏
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
       
       {/* Notification Modal */}
@@ -657,6 +880,44 @@ export default function CheckInScreen() {
                 <Text style={styles.saveButtonText}>Save</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Premium Paywall Modal */}
+      <Modal
+        visible={showPaywallModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowPaywallModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>🔒 Covenant Premium</Text>
+            
+            <Text style={[styles.paywallDesc, { color: subColor }]}>
+              Unlock powerful features to strengthen your marriage:
+            </Text>
+            
+            <View style={styles.paywallFeatures}>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>✨ Unlimited bucket list dreams</Text>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>📊 Growth Insights</Text>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>💾 Full check-in history</Text>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>📸 Photo memories for bucket list</Text>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>💌 Private letters to spouse</Text>
+              <Text style={[styles.paywallFeature, { color: textColor }]}>🎁 Time capsules</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.paywallButton}>
+              <Text style={styles.paywallButtonText}>Upgrade to Premium</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.paywallClose}
+              onPress={() => setShowPaywallModal(false)}
+            >
+              <Text style={styles.paywallCloseText}>Maybe Later</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1123,5 +1384,146 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Lato_700Bold',
     color: Colours.cream,
+  },
+  
+  // Growth Insights
+  insightsSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+    marginBottom: 12,
+  },
+  insightCard: {
+    borderRadius: 16,
+    padding: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: Colours.gold,
+  },
+  insightLabel: {
+    fontSize: 13,
+    fontFamily: 'Lato_600SemiBold',
+    marginBottom: 8,
+  },
+  insightText: {
+    fontSize: 17,
+    fontFamily: 'CormorantGaramond_400Regular',
+    lineHeight: 24,
+  },
+  insightScripture: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(200,148,58,0.3)',
+  },
+  insightScriptureText: {
+    fontSize: 14,
+    fontFamily: 'Lato_400Regular',
+    fontStyle: 'italic',
+  },
+  insightTeaser: {
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  insightTeaserText: {
+    fontSize: 16,
+    fontFamily: 'Lato_600SemiBold',
+    marginBottom: 4,
+  },
+  insightTeaserSub: {
+    fontSize: 14,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+  },
+  
+  // Leaderboard
+  leaderboardSection: {
+    marginHorizontal: 16,
+    marginTop: 24,
+  },
+  leaderboardToggle: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  leaderboardToggleText: {
+    fontSize: 15,
+    fontFamily: 'Lato_600SemiBold',
+  },
+  leaderboardToggleSub: {
+    fontSize: 13,
+    fontFamily: 'Lato_400Regular',
+    marginTop: 2,
+  },
+  leaderboardList: {
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leaderboardRank: {
+    fontSize: 16,
+    fontFamily: 'Lato_700Bold',
+    width: 30,
+  },
+  leaderboardNames: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+  },
+  leaderboardStreak: {
+    fontSize: 14,
+    fontFamily: 'Lato_600SemiBold',
+  },
+  leaderboardOptInHint: {
+    fontSize: 14,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  
+  // Premium Paywall
+  paywallDesc: {
+    fontSize: 15,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  paywallFeatures: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  paywallFeature: {
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+  },
+  paywallButton: {
+    backgroundColor: Colours.gold,
+    borderRadius: 30,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  paywallButtonText: {
+    color: Colours.brownDeep,
+    fontSize: 17,
+    fontFamily: 'Lato_700Bold',
+  },
+  paywallClose: {
+    padding: 12,
+    alignItems: 'center',
+  },
+  paywallCloseText: {
+    color: Colours.brownMid,
+    fontSize: 15,
+    fontFamily: 'Lato_400Regular',
   },
 });
