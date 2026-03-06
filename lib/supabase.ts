@@ -230,6 +230,67 @@ export type Database = {
           premium_expiry?: string | null;
         };
       };
+      // ─── Bucket List ───────────────────────────────────────────────
+      bucket_list: {
+        Row: {
+          id: string;
+          couple_id: string;
+          text: string;
+          category: string;
+          target_date: string | null;
+          completed: boolean;
+          completed_at: string | null;
+          photo_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          couple_id: string;
+          text: string;
+          category: string;
+          target_date?: string | null;
+          completed?: boolean;
+          photo_url?: string | null;
+        };
+        Update: {
+          text?: string;
+          category?: string;
+          target_date?: string | null;
+          completed?: boolean;
+          completed_at?: string | null;
+          photo_url?: string | null;
+        };
+      };
+      // ─── Monthly Goals ────────────────────────────────────────────
+      monthly_goals: {
+        Row: {
+          id: string;
+          couple_id: string;
+          goal_text: string;
+          month: number;
+          year: number;
+          proposed_by: string | null;
+          confirmed: boolean;
+          outcome: string | null;
+          created_at: string;
+        };
+        Insert: {
+          couple_id: string;
+          goal_text: string;
+          month: number;
+          year: number;
+          proposed_by?: string | null;
+          confirmed?: boolean;
+          outcome?: string | null;
+        };
+        Update: {
+          goal_text?: string;
+          month?: number;
+          year?: number;
+          proposed_by?: string | null;
+          confirmed?: boolean;
+          outcome?: string | null;
+        };
+      };
     };
   };
 };
@@ -379,4 +440,120 @@ export function getNextAnniversaryDate(): string {
   const nextYear = new Date();
   nextYear.setFullYear(nextYear.getFullYear() + 1);
   return nextYear.toISOString().split('T')[0];
+}
+
+// ─── Bucket List Helpers ─────────────────────────────────────────────────────
+
+export type BucketItem = Database['public']['Tables']['bucket_list']['Row'];
+
+export async function getBucketList(coupleId: string) {
+  const { data, error } = await supabase
+    .from('bucket_list')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .order('created_at', { ascending: false });
+  return { items: data as BucketItem[] | null, error };
+}
+
+export async function addBucketItem(coupleId: string, text: string, category: string, targetDate?: string) {
+  const { data, error } = await supabase
+    .from('bucket_list')
+    .insert({
+      couple_id: coupleId,
+      text,
+      category,
+      target_date: targetDate || null,
+      completed: false,
+    })
+    .select()
+    .single();
+  return { item: data as BucketItem | null, error };
+}
+
+export async function completeBucketItem(itemId: string, photoUrl?: string) {
+  const { data, error } = await supabase
+    .from('bucket_list')
+    .update({
+      completed: true,
+      completed_at: new Date().toISOString(),
+      photo_url: photoUrl || null,
+    })
+    .eq('id', itemId)
+    .select()
+    .single();
+  return { item: data as BucketItem | null, error };
+}
+
+export async function deleteBucketItem(itemId: string) {
+  const { error } = await supabase
+    .from('bucket_list')
+    .delete()
+    .eq('id', itemId);
+  return { error };
+}
+
+// ─── Monthly Goals Helpers ───────────────────────────────────────────────────
+
+export type MonthlyGoal = Database['public']['Tables']['monthly_goals']['Row'];
+
+export async function getMonthlyGoals(coupleId: string) {
+  const { data, error } = await supabase
+    .from('monthly_goals')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .order('year', { ascending: false })
+    .order('month', { ascending: false });
+  return { goals: data as MonthlyGoal[] | null, error };
+}
+
+export async function getCurrentMonthGoal(coupleId: string) {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  
+  const { data, error } = await supabase
+    .from('monthly_goals')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .eq('month', month)
+    .eq('year', year)
+    .single();
+  return { goal: data as MonthlyGoal | null, error };
+}
+
+export async function proposeMonthlyGoal(coupleId: string, userId: string, goalText: string, category: string, month: number, year: number) {
+  const { data, error } = await supabase
+    .from('monthly_goals')
+    .insert({
+      couple_id: coupleId,
+      goal_text: goalText,
+      category,
+      month,
+      year,
+      proposed_by: userId,
+      confirmed: false,
+    })
+    .select()
+    .single();
+  return { goal: data as MonthlyGoal | null, error };
+}
+
+export async function confirmMonthlyGoal(goalId: string) {
+  const { data, error } = await supabase
+    .from('monthly_goals')
+    .update({ confirmed: true })
+    .eq('id', goalId)
+    .select()
+    .single();
+  return { goal: data as MonthlyGoal | null, error };
+}
+
+export async function updateGoalOutcome(goalId: string, outcome: 'achieved' | 'partial' | 'missed') {
+  const { data, error } = await supabase
+    .from('monthly_goals')
+    .update({ outcome })
+    .eq('id', goalId)
+    .select()
+    .single();
+  return { goal: data as MonthlyGoal | null, error };
 }
