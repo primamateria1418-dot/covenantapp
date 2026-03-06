@@ -647,7 +647,7 @@ export async function getLeaderboard(churchId: string) {
     couple_id: row.id,
     name1: row.name1,
     name2: row.name2,
-    current_streak: row.streaks?.current_streak || 0,
+    current_streak: (row.streaks as { current_streak?: number })?.current_streak || 0,
   })) as LeaderboardEntry[];
   
   return { entries, error: null };
