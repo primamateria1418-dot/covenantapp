@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Colours } from '@/constants/colours';
 import { supabase, getProfile, getSession, getCheckInAnswersForInsights, getCheckInCount, getLeaderboard, getCoupleWithChurch, updateLeaderboardOptIn } from '@/lib/supabase';
 import { scheduleWeeklyCheckinReminder, cancelAllScheduledNotifications } from '@/lib/notifications';
+import { processReferralOnFirstCheckin } from '@/lib/premium';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────────
 
@@ -416,6 +417,15 @@ export default function CheckInScreen() {
       const milestone = getMilestoneMessage(newStreak);
       if (milestone) {
         setShowMilestone(milestone);
+      }
+      
+      // Process referral if this is the first check-in
+      const referralResult = await processReferralOnFirstCheckin(profile.couple_id);
+      if (referralResult.rewardApplied) {
+        Alert.alert('🎉 Free Month Earned!', 
+          'You and the couple who referred you each got 1 month of Premium free!',
+          [{ text: 'Awesome!' }]
+        );
       }
       
       setStreak(prev => ({ ...prev, current_streak: newStreak, longest_streak: newLongest }));

@@ -240,9 +240,12 @@ export type Database = {
           anniversary: string | null;
           couple_code: string;
           church_id: string | null;
+          church_licence_expiry: string | null;
           leaderboard_optin: boolean;
           premium: boolean;
           premium_expiry: string | null;
+          referral_code: string | null;
+          referred_by: string | null;
           created_at: string;
         };
         Insert: {
@@ -253,17 +256,23 @@ export type Database = {
           anniversary: string;
           couple_code: string;
           church_id?: string | null;
+          church_licence_expiry?: string | null;
           leaderboard_optin?: boolean;
           premium?: boolean;
+          referral_code?: string | null;
+          referred_by?: string | null;
         };
         Update: {
           user_id_2?: string | null;
           name2?: string;
           anniversary?: string;
           church_id?: string | null;
+          church_licence_expiry?: string | null;
           leaderboard_optin?: boolean;
           premium?: boolean;
           premium_expiry?: string | null;
+          referral_code?: string | null;
+          referred_by?: string | null;
         };
       };
       // ─── Bucket List ───────────────────────────────────────────────

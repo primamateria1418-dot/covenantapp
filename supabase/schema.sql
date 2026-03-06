@@ -34,6 +34,7 @@ CREATE TABLE public.couples (
   anniversary DATE NOT NULL,
   couple_code TEXT UNIQUE NOT NULL,
   church_id UUID REFERENCES public.churches(id) ON DELETE SET NULL,
+  church_licence_expiry DATE, -- when church licence expires (gives premium access)
   leaderboard_optin BOOLEAN DEFAULT false,
   premium BOOLEAN DEFAULT false,
   premium_expiry TIMESTAMPTZ,

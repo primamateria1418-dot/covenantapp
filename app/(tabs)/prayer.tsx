@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase, getProfile, getSession } from '@/lib/supabase';
 import { Colours } from '@/constants/colours';
+import { canAddPrayer } from '@/lib/premium';
 import * as Notifications from 'expo-notifications';
 
 // Types
@@ -179,7 +180,8 @@ export default function PrayerScreen() {
     }
 
     // Check free tier limit
-    if (prayers.length >= FREE_PRAYER_LIMIT) {
+    const prayerLimit = await canAddPrayer();
+    if (!prayerLimit.canAccess) {
       setShowPaywall(true);
       return;
     }

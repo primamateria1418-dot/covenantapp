@@ -16,6 +16,7 @@ import { router, Link } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colours } from '@/constants/colours';
 import { signOut, getSession, getProfile, getCoupleForUser } from '@/lib/supabase';
+import { getPremiumStatus, getReferralInfo } from '@/lib/premium';
 
 type Profile = {
   id: string;
@@ -66,6 +67,13 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   
+  // Premium status
+  const [premiumStatus, setPremiumStatus] = useState<{
+    isPremium: boolean;
+    isInTrial: boolean;
+    daysRemaining: number | null;
+  } | null>(null);
+  
   // Link spouse modal
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [spouseCode, setSpouseCode] = useState('');
@@ -87,8 +95,17 @@ export default function ProfileScreen() {
   const [partnerNudge, setPartnerNudge] = useState(true);
   const [anniversaryAlert, setAnniversaryAlert] = useState(true);
   
-  // Referral count (mock - would come from backend)
-  const referralCount: number = 3;
+  // Referral data from backend
+  const [referralData, setReferralData] = useState<{
+    referralCode: string | null;
+    referralCount: number;
+    monthsEarned: number;
+  }>({
+    referralCode: null,
+    referralCount: 0,
+    monthsEarned: 0,
+  });
+  const referralCount = referralData.referralCount;
 
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const textColor = isDark ? Colours.cream : Colours.brownDeep;
@@ -141,6 +158,22 @@ export default function ProfileScreen() {
       if (c) {
         setCouple(c);
       }
+      
+      // Get premium status
+      const status = await getPremiumStatus();
+      setPremiumStatus({
+        isPremium: status.isPremium,
+        isInTrial: status.isInTrial,
+        daysRemaining: status.daysRemaining,
+      });
+      
+      // Get referral info
+      const referral = await getReferralInfo();
+      setReferralData({
+        referralCode: referral.referralCode,
+        referralCount: referral.referralCount,
+        monthsEarned: referral.monthsEarned,
+      });
     } catch {
       // ignore
     } finally {
@@ -247,7 +280,9 @@ export default function ProfileScreen() {
 
   const coupleCode = couple?.couple_code || profile?.couple_code || 'GRACE7';
 
-  const subscriptionStatus = couple?.premium ? 'Premium' : 'Free';
+  const subscriptionStatus = couple?.premium 
+    ? (premiumStatus?.isInTrial ? 'Trial' : 'Premium') 
+    : 'Free';
 
   if (loading) {
     return (
@@ -358,6 +393,7 @@ export default function ProfileScreen() {
           {!couple?.premium && (
             <TouchableOpacity
               style={[styles.upgradeButton, { backgroundColor: Colours.gold }]}
+              onPress={() => router.push('/premium')}
             >
               <Text style={styles.upgradeButtonText}>Upgrade</Text>
             </TouchableOpacity>
