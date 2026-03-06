@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ScrollView, TouchableOpacity } from 'react-native';
 import { Colours } from '@/constants/colours';
 import { DEVOTIONAL_TOPICS, MARRIAGE_TIPS } from '@/constants/data';
@@ -7,12 +8,47 @@ export default function DevotionalScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const [hasStarted, setHasStarted] = useState(false);
+
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const textColor = isDark ? Colours.cream : Colours.brownDeep;
   const subColor = isDark ? Colours.goldLight : Colours.brownMid;
   const cardBg = isDark ? Colours.darkCard : '#fff';
 
   const todayTip = MARRIAGE_TIPS[new Date().getDay() % MARRIAGE_TIPS.length];
+
+  // Empty state for new users
+  if (!hasStarted) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: bgColor }}
+        contentContainerStyle={styles.emptyContainer}
+      >
+        <Text style={[styles.heading, { color: textColor }]}>Devotional</Text>
+        <Text style={[styles.subheading, { color: subColor }]}>
+          Grow together in faith
+        </Text>
+
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>📖</Text>
+          <Text style={[styles.emptyTitle, { color: textColor }]}>
+            Begin Day 1 of your 30-day journey
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: subColor }]}>
+            Daily devotions to strengthen your marriage
+          </Text>
+          <TouchableOpacity
+            style={[styles.startButton, { backgroundColor: Colours.brownWarm }]}
+            onPress={() => setHasStarted(true)}
+          >
+            <Text style={styles.startButtonText}>Start Journey</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TipBox tip={todayTip} icon="🌿" />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -65,6 +101,10 @@ export default function DevotionalScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    padding: 24,
+    gap: 16,
+  },
+  emptyContainer: {
     padding: 24,
     gap: 16,
   },
@@ -142,6 +182,38 @@ const styles = StyleSheet.create({
   readButtonText: {
     color: Colours.cream,
     fontSize: 14,
+    fontFamily: 'Lato_700Bold',
+  },
+  // Empty state styles
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 16,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontFamily: 'CormorantGaramond_700Bold',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  startButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 36,
+    borderRadius: 30,
+    marginTop: 8,
+  },
+  startButtonText: {
+    color: Colours.cream,
+    fontSize: 17,
     fontFamily: 'Lato_700Bold',
   },
 });

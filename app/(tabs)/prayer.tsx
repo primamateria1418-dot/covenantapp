@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, useColorScheme, ScrollView, TouchableOpacity } from 'react-native';
 import { Colours } from '@/constants/colours';
 import { TipBox } from '@/components/TipBox';
 
@@ -6,10 +7,51 @@ export default function PrayerScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  const [hasPrayers, setHasPrayers] = useState(false);
+
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const textColor = isDark ? Colours.cream : Colours.brownDeep;
   const subColor = isDark ? Colours.goldLight : Colours.brownMid;
   const cardBg = isDark ? Colours.darkCard : '#fff';
+
+  // Empty state for new users
+  if (!hasPrayers) {
+    return (
+      <ScrollView
+        style={{ flex: 1, backgroundColor: bgColor }}
+        contentContainerStyle={styles.emptyContainer}
+      >
+        <Text style={[styles.heading, { color: textColor }]}>Prayer</Text>
+        <Text style={[styles.subheading, { color: subColor }]}>
+          Pray together, stay together
+        </Text>
+
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>🕊️</Text>
+          <Text style={[styles.emptyTitle, { color: textColor }]}>
+            Your prayer journal is empty
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: subColor }]}>
+            What would you like to bring to God today?
+          </Text>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: Colours.brownWarm }]}
+            onPress={() => setHasPrayers(true)}
+          >
+            <Text style={styles.addButtonText}>Add Prayer Request</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.verseCard, { backgroundColor: cardBg }]}>
+          <Text style={[styles.verseText, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
+            "Again, truly I tell you that if two of you on earth agree about anything they ask for,
+            it will be done for them by my Father in heaven."
+          </Text>
+          <Text style={[styles.verseRef, { color: Colours.gold }]}>Matthew 18:19</Text>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -35,18 +77,24 @@ export default function PrayerScreen() {
       />
 
       <Text style={[styles.sectionTitle, { color: textColor }]}>Prayer Requests</Text>
-      <View style={[styles.emptyState, { borderColor: isDark ? Colours.brownMid : '#d4c4b0' }]}>
-        <Text style={styles.emptyEmoji}>🕊️</Text>
-        <Text style={[styles.emptyText, { color: subColor }]}>
-          No prayer requests yet.{'\n'}Add your first prayer request.
+      <TouchableOpacity
+        style={[styles.newPrayerButton, { borderColor: Colours.brownWarm }]}
+        onPress={() => {}}
+      >
+        <Text style={[styles.newPrayerText, { color: Colours.brownWarm }]}>
+          + Add New Prayer
         </Text>
-      </View>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    padding: 24,
+    gap: 16,
+  },
+  emptyContainer: {
     padding: 24,
     gap: 16,
   },
@@ -85,21 +133,47 @@ const styles = StyleSheet.create({
     fontFamily: 'CormorantGaramond_600SemiBold',
     marginTop: 8,
   },
-  emptyState: {
+  newPrayerButton: {
     borderWidth: 1,
     borderStyle: 'dashed',
     borderRadius: 12,
-    padding: 32,
+    padding: 20,
     alignItems: 'center',
-    gap: 12,
+  },
+  newPrayerText: {
+    fontSize: 15,
+    fontFamily: 'Lato_600SemiBold',
+  },
+  // Empty state styles
+  emptyState: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 16,
   },
   emptyEmoji: {
-    fontSize: 40,
+    fontSize: 56,
   },
-  emptyText: {
-    fontSize: 14,
+  emptyTitle: {
+    fontSize: 20,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 15,
     fontFamily: 'Lato_400Regular',
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: 8,
+  },
+  addButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 30,
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: Colours.cream,
+    fontSize: 16,
+    fontFamily: 'Lato_700Bold',
   },
 });

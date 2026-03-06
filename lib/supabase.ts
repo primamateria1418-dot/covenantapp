@@ -54,6 +54,7 @@ export async function upsertProfile(profile: {
   name: string;
   spouse_name?: string | null;
   wedding_date?: string | null;
+  couple_code?: string | null;
 }) {
   const { data, error } = await supabase
     .from('profiles')
@@ -76,6 +77,7 @@ export type Database = {
           spouse_name: string | null;
           wedding_date: string | null;
           avatar_url: string | null;
+          couple_code: string | null;
         };
         Insert: {
           id: string;
@@ -83,12 +85,14 @@ export type Database = {
           spouse_name?: string | null;
           wedding_date?: string | null;
           avatar_url?: string | null;
+          couple_code?: string | null;
         };
         Update: {
           name?: string;
           spouse_name?: string | null;
           wedding_date?: string | null;
           avatar_url?: string | null;
+          couple_code?: string | null;
         };
       };
       prayers: {
@@ -155,3 +159,12 @@ export type Database = {
     };
   };
 };
+
+// ─── Couple Code Generation ──────────────────────────────────────────────────────
+
+export function generateCoupleCode(): string {
+  const adjectives = ['GRACE', 'FAITH', 'HOPE', 'LOVE', 'PEACE', 'JOY', 'BLESS', 'GROW', 'RISE', 'SHINE'];
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const num = Math.floor(Math.random() * 10);
+  return `${adj}${num}`;
+}
