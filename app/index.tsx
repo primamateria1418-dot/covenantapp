@@ -2,17 +2,40 @@ import { useEffect } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Colours } from '@/constants/colours';
+import { getSession, getProfile } from '@/lib/supabase';
 
 export default function IndexScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
   useEffect(() => {
-    // Redirect to tabs after a brief splash
-    const timer = setTimeout(() => {
-      router.replace('/(tabs)/checkin');
-    }, 1500);
-    return () => clearTimeout(timer);
+    async function checkAuth() {
+      try {
+        const { session } = await getSession();
+
+        if (!session) {
+          // No session — go to login
+          router.replace('/auth/login');
+          return;
+        }
+
+        // Session exists — check if profile/setup is complete
+        const { profile } = await getProfile(session.user.id);
+
+        if (!profile || !profile.name) {
+          // No profile yet — go to setup
+          router.replace('/setup');
+        } else {
+          // All good — go to main app
+          router.replace('/(tabs)/checkin');
+        }
+      } catch {
+        // On any error, fall back to login
+        router.replace('/auth/login');
+      }
+    }
+
+    checkAuth();
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,22 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router, Link } from 'expo-router';
+import { Link } from 'expo-router';
 import { Colours } from '@/constants/colours';
+import { signUp } from '@/lib/supabase';
 
 export default function SignupScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const cardBg = isDark ? Colours.darkCard : '#fff';
@@ -29,15 +33,72 @@ export default function SignupScreen() {
   const inputBg = isDark ? Colours.brownDeep : '#f5f0ea';
   const borderColor = isDark ? Colours.brownMid : '#d4c4b0';
 
-  const handleSignup = async () => {
-    if (password !== confirmPassword) return;
+  const passwordsMatch = confirmPassword === '' || password === confirmPassword;
+  const passwordLongEnough = password.length === 0 || password.length >= 8;
+  const canSubmit =
+    email.trim() !== '' &&
+    password.length >= 8 &&
+    password === confirmPassword &&
+    !loading;
+
+  const handleSignup = useCallback(async () => {
+    setError('');
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
-    // TODO: Implement Supabase auth
-    setTimeout(() => {
+    try {
+      const { data, error: authError } = await signUp(email.trim(), password);
+
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+
+      // Show email verification message
+      setSuccess(true);
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
       setLoading(false);
-      router.replace('/setup');
-    }, 1000);
-  };
+    }
+  }, [email, password, confirmPassword]);
+
+  if (success) {
+    return (
+      <View style={[styles.successContainer, { backgroundColor: bgColor }]}>
+        <Text style={styles.successEmoji}>✉️</Text>
+        <Text style={[styles.successTitle, { color: textColor }]}>
+          Check your email
+        </Text>
+        <Text style={[styles.successText, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
+          We've sent a verification link to{'\n'}
+          <Text style={{ fontFamily: 'Lato_700Bold', color: Colours.gold }}>{email}</Text>
+          {'\n\n'}
+          Please verify your email before logging in.
+        </Text>
+        <Link href="/auth/login" asChild>
+          <TouchableOpacity style={[styles.button, { backgroundColor: Colours.brownWarm }]}>
+            <Text style={styles.buttonText}>Go to Sign In</Text>
+          </TouchableOpacity>
+        </Link>
+        <Text style={[styles.verse, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
+          "Where you go I will go." — Ruth 1:16
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -54,70 +115,90 @@ export default function SignupScreen() {
         </Text>
 
         <View style={[styles.card, { backgroundColor: cardBg }]}>
-          <Text style={[styles.label, { color: textColor }]}>Your Name</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter your name"
-            placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
-          />
-
           <Text style={[styles.label, { color: textColor }]}>Email</Text>
           <TextInput
             style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(t) => { setEmail(t); setError(''); }}
             placeholder="your@email.com"
             placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
           />
 
           <Text style={[styles.label, { color: textColor }]}>Password</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Create a password"
-            placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
-            secureTextEntry
-          />
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.passwordInput,
+                {
+                  backgroundColor: inputBg,
+                  borderColor: !passwordLongEnough ? '#e05555' : borderColor,
+                  color: textColor,
+                },
+              ]}
+              value={password}
+              onChangeText={(t) => { setPassword(t); setError(''); }}
+              placeholder="Min. 8 characters"
+              placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={[styles.eyeButton, { backgroundColor: inputBg, borderColor }]}
+              onPress={() => setShowPassword((v) => !v)}
+            >
+              <Text style={{ fontSize: 18 }}>{showPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          {!passwordLongEnough && (
+            <Text style={styles.fieldError}>Password must be at least 8 characters</Text>
+          )}
 
           <Text style={[styles.label, { color: textColor }]}>Confirm Password</Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: inputBg,
-                borderColor: confirmPassword && password !== confirmPassword
-                  ? '#e05555'
-                  : borderColor,
-                color: textColor,
-              },
-            ]}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            placeholder="Confirm your password"
-            placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
-            secureTextEntry
-          />
-          {confirmPassword && password !== confirmPassword && (
-            <Text style={styles.errorText}>Passwords do not match</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.passwordInput,
+                {
+                  backgroundColor: inputBg,
+                  borderColor: !passwordsMatch ? '#e05555' : borderColor,
+                  color: textColor,
+                },
+              ]}
+              value={confirmPassword}
+              onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
+              placeholder="Confirm your password"
+              placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
+              secureTextEntry={!showConfirmPassword}
+            />
+            <TouchableOpacity
+              style={[styles.eyeButton, { backgroundColor: inputBg, borderColor }]}
+              onPress={() => setShowConfirmPassword((v) => !v)}
+            >
+              <Text style={{ fontSize: 18 }}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+            </TouchableOpacity>
+          </View>
+          {!passwordsMatch && (
+            <Text style={styles.fieldError}>Passwords do not match</Text>
           )}
         </View>
+
+        {error ? (
+          <View style={[styles.errorBox, { backgroundColor: isDark ? '#3a1515' : '#fdecea' }]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[
             styles.button,
-            {
-              backgroundColor: name && email && password && password === confirmPassword
-                ? Colours.brownWarm
-                : '#ccc',
-            },
+            { backgroundColor: canSubmit ? Colours.brownWarm : '#ccc' },
           ]}
           onPress={handleSignup}
-          disabled={loading || !name || !email || !password || password !== confirmPassword}
+          disabled={!canSubmit}
         >
           <Text style={styles.buttonText}>
             {loading ? 'Creating account...' : 'Create Account'}
@@ -131,6 +212,26 @@ export default function SignupScreen() {
           <Link href="/auth/login" asChild>
             <TouchableOpacity>
               <Text style={[styles.loginLink, { color: Colours.gold }]}>Sign In</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+
+        {/* Privacy Policy & Terms of Service */}
+        <View style={styles.legalRow}>
+          <Text style={[styles.legalText, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
+            By creating an account you agree to our{' '}
+          </Text>
+          <Link href="/auth/privacy" asChild>
+            <TouchableOpacity>
+              <Text style={[styles.legalLink, { color: Colours.gold }]}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </Link>
+          <Text style={[styles.legalText, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
+            {' '}and{' '}
+          </Text>
+          <Link href="/auth/terms" asChild>
+            <TouchableOpacity>
+              <Text style={[styles.legalLink, { color: Colours.gold }]}>Terms of Service</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -150,6 +251,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
+  },
+  successContainer: {
+    flex: 1,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  successEmoji: {
+    fontSize: 64,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontFamily: 'CormorantGaramond_700Bold',
+    textAlign: 'center',
+  },
+  successText: {
+    fontSize: 16,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   title: {
     fontSize: 44,
@@ -186,10 +308,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Lato_400Regular',
   },
-  errorText: {
+  passwordRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fieldError: {
     color: '#e05555',
     fontSize: 12,
     fontFamily: 'Lato_400Regular',
+  },
+  errorBox: {
+    width: '100%',
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    color: '#c0392b',
+    fontSize: 13,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
   },
   button: {
     width: '100%',
@@ -213,6 +362,22 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 14,
+    fontFamily: 'Lato_700Bold',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  legalText: {
+    fontSize: 12,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+  },
+  legalLink: {
+    fontSize: 12,
     fontFamily: 'Lato_700Bold',
   },
   verse: {

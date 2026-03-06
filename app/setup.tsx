@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,11 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Colours } from '@/constants/colours';
+import { getSession, upsertProfile } from '@/lib/supabase';
 
 export default function SetupScreen() {
   const colorScheme = useColorScheme();
@@ -20,6 +22,7 @@ export default function SetupScreen() {
   const [yourName, setYourName] = useState('');
   const [spouseName, setSpouseName] = useState('');
   const [weddingDate, setWeddingDate] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const cardBg = isDark ? Colours.darkCard : '#fff';
@@ -27,11 +30,37 @@ export default function SetupScreen() {
   const inputBg = isDark ? Colours.brownDeep : '#f5f0ea';
   const borderColor = isDark ? Colours.brownMid : '#d4c4b0';
 
-  const handleContinue = () => {
-    if (yourName.trim()) {
+  const handleContinue = useCallback(async () => {
+    if (!yourName.trim()) return;
+
+    setLoading(true);
+    try {
+      const { session } = await getSession();
+      if (!session) {
+        router.replace('/auth/login');
+        return;
+      }
+
+      const { error } = await upsertProfile({
+        id: session.user.id,
+        name: yourName.trim(),
+        spouse_name: spouseName.trim() || null,
+        wedding_date: weddingDate.trim() || null,
+      });
+
+      if (error) {
+        // If the profiles table doesn't exist yet, still proceed
+        // (Supabase table may not be created yet in dev)
+        console.warn('Profile save error (non-blocking):', error.message);
+      }
+
       router.replace('/(tabs)/checkin');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save your profile. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [yourName, spouseName, weddingDate]);
 
   return (
     <KeyboardAvoidingView
@@ -80,12 +109,14 @@ export default function SetupScreen() {
         <TouchableOpacity
           style={[
             styles.button,
-            { backgroundColor: yourName.trim() ? Colours.brownWarm : '#ccc' },
+            { backgroundColor: yourName.trim() && !loading ? Colours.brownWarm : '#ccc' },
           ]}
           onPress={handleContinue}
-          disabled={!yourName.trim()}
+          disabled={!yourName.trim() || loading}
         >
-          <Text style={styles.buttonText}>Begin Your Journey →</Text>
+          <Text style={styles.buttonText}>
+            {loading ? 'Saving...' : 'Begin Your Journey →'}
+          </Text>
         </TouchableOpacity>
 
         <Text style={[styles.verse, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>

@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabaseUrl = 'https://vvbqktqlkcafmfxfekie.supabase.co';
+const supabaseAnonKey = 'sb_publishable_fxDti6SfownkSKZafG9opw_Pe_9-DN4';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -12,6 +12,58 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// ─── Auth Helpers ────────────────────────────────────────────────────────────
+
+export async function signUp(email: string, password: string) {
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  return { data, error };
+}
+
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return { data, error };
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  return { error };
+}
+
+export async function resetPassword(email: string) {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+  return { data, error };
+}
+
+export async function getSession() {
+  const { data, error } = await supabase.auth.getSession();
+  return { session: data.session, error };
+}
+
+export async function getProfile(userId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  return { profile: data, error };
+}
+
+export async function upsertProfile(profile: {
+  id: string;
+  name: string;
+  spouse_name?: string | null;
+  wedding_date?: string | null;
+}) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(profile, { onConflict: 'id' })
+    .select()
+    .single();
+  return { data, error };
+}
+
+// ─── Database Types ───────────────────────────────────────────────────────────
 
 export type Database = {
   public: {

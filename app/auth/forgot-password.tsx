@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Colours } from '@/constants/colours';
+import { resetPassword } from '@/lib/supabase';
 
 export default function ForgotPasswordScreen() {
   const colorScheme = useColorScheme();
@@ -19,6 +20,7 @@ export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
 
   const bgColor = isDark ? Colours.darkBg : Colours.cream;
   const cardBg = isDark ? Colours.darkCard : '#fff';
@@ -26,14 +28,30 @@ export default function ForgotPasswordScreen() {
   const inputBg = isDark ? Colours.brownDeep : '#f5f0ea';
   const borderColor = isDark ? Colours.brownMid : '#d4c4b0';
 
-  const handleReset = async () => {
+  const handleReset = useCallback(async () => {
+    setError('');
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+
     setLoading(true);
-    // TODO: Implement Supabase password reset
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { error: resetError } = await resetPassword(email.trim());
+
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+
       setSent(true);
-    }, 1000);
-  };
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [email]);
 
   return (
     <KeyboardAvoidingView
@@ -48,14 +66,16 @@ export default function ForgotPasswordScreen() {
               Check your email
             </Text>
             <Text style={[styles.successText, { color: isDark ? Colours.goldLight : Colours.brownMid }]}>
-              We've sent a password reset link to {email}
+              We've sent a password reset link to{'\n'}
+              <Text style={{ fontFamily: 'Lato_700Bold', color: Colours.gold }}>{email}</Text>
             </Text>
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: Colours.brownWarm }]}
-              onPress={() => router.back()}
-            >
-              <Text style={styles.buttonText}>Back to Sign In</Text>
-            </TouchableOpacity>
+            <Link href="/auth/login" asChild>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: Colours.brownWarm }]}
+              >
+                <Text style={styles.buttonText}>Back to Sign In</Text>
+              </TouchableOpacity>
+            </Link>
           </View>
         ) : (
           <>
@@ -69,26 +89,41 @@ export default function ForgotPasswordScreen() {
               <TextInput
                 style={[styles.input, { backgroundColor: inputBg, borderColor, color: textColor }]}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setError(''); }}
                 placeholder="your@email.com"
                 placeholderTextColor={isDark ? Colours.brownMid : '#a09080'}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
+
+            {error ? (
+              <View style={[styles.errorBox, { backgroundColor: isDark ? '#3a1515' : '#fdecea' }]}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
             <TouchableOpacity
               style={[
                 styles.button,
-                { backgroundColor: email ? Colours.brownWarm : '#ccc' },
+                { backgroundColor: email.trim() && !loading ? Colours.brownWarm : '#ccc' },
               ]}
               onPress={handleReset}
-              disabled={loading || !email}
+              disabled={loading || !email.trim()}
             >
               <Text style={styles.buttonText}>
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </Text>
             </TouchableOpacity>
+
+            <Link href="/auth/login" asChild>
+              <TouchableOpacity style={styles.backLink}>
+                <Text style={[styles.backLinkText, { color: Colours.gold }]}>
+                  ← Back to Sign In
+                </Text>
+              </TouchableOpacity>
+            </Link>
           </>
         )}
       </View>
@@ -135,6 +170,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Lato_400Regular',
   },
+  errorBox: {
+    borderRadius: 10,
+    padding: 12,
+  },
+  errorText: {
+    color: '#c0392b',
+    fontSize: 13,
+    fontFamily: 'Lato_400Regular',
+    textAlign: 'center',
+  },
   button: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -146,12 +191,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Lato_700Bold',
     letterSpacing: 0.5,
   },
+  backLink: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+  },
+  backLinkText: {
+    fontSize: 14,
+    fontFamily: 'Lato_400Regular',
+  },
   successContainer: {
     alignItems: 'center',
     gap: 16,
   },
   successEmoji: {
-    fontSize: 56,
+    fontSize: 64,
   },
   successTitle: {
     fontSize: 24,
@@ -161,6 +214,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Lato_400Regular',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

@@ -68,6 +68,8 @@ export default function RootLayout() {
         <Stack.Screen name="auth/login" options={{ title: 'Sign In', headerShown: false }} />
         <Stack.Screen name="auth/signup" options={{ title: 'Create Account', headerShown: false }} />
         <Stack.Screen name="auth/forgot-password" options={{ title: 'Reset Password' }} />
+        <Stack.Screen name="auth/privacy" options={{ title: 'Privacy Policy' }} />
+        <Stack.Screen name="auth/terms" options={{ title: 'Terms of Service' }} />
         <Stack.Screen name="profile" options={{ title: 'Profile' }} />
         <Stack.Screen name="journal" options={{ title: 'Journal' }} />
         <Stack.Screen name="timeline" options={{ title: 'Our Timeline' }} />

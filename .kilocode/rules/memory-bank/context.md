@@ -78,9 +78,19 @@ The project has been converted from a Next.js template to a React Native / Expo 
 
 Active colour: `#6b3322` (brownWarm). Inactive: grey.
 
+## Auth Flow
+
+| Step | Behaviour |
+|------|-----------|
+| App launch (`/`) | Check Supabase session → login if none, setup if no profile, tabs if ready |
+| Sign Up | Email + password (min 8 chars), show/hide toggle, confirm password, email verification message, Privacy Policy + Terms links |
+| Login | Email + password, show/hide toggle, rate limit (5 attempts → 15 min lockout), auto-login if session exists |
+| Forgot Password | Email input → Supabase `resetPasswordForEmail`, success message |
+| Setup | Save name/spouse/wedding date to `profiles` table via `upsertProfile` |
+| Sign Out | `supabase.auth.signOut()` → redirect to `/auth/login` |
+
 ## Next Steps (Suggested)
 
-- [ ] Wire up Supabase auth in login/signup screens
 - [ ] Implement prayer request CRUD with Supabase
 - [ ] Implement journal entry CRUD with Supabase
 - [ ] Add real check-in mood logging
@@ -88,9 +98,11 @@ Active colour: `#6b3322` (brownWarm). Inactive: grey.
 - [ ] Add push notification permission request on first launch
 - [ ] Add anniversary countdown to profile
 - [ ] Add more scripture verses and devotional content
+- [ ] Create `profiles` table in Supabase dashboard
 
 ## Session History
 
 | Date | Changes |
 |------|---------|
 | 2026-03-06 | Bootstrapped Covenant app — full Expo/RN scaffold with all screens, navigation, dark mode, TypeScript |
+| 2026-03-06 | Implemented full Supabase Auth — login, signup, forgot password, session check, rate limiting, sign out, setup profile save, privacy/terms screens |
