@@ -81,3 +81,30 @@ export async function schedulePrayerReminder(hour = 20, minute = 0): Promise<str
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
+
+export async function scheduleWeeklyReminder(
+  dayOfWeek: number = 1, // 0 = Sunday, 1 = Monday, etc.
+  time: string = '09:00'
+): Promise<string> {
+  // Cancel existing notifications first
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  
+  // Parse time
+  const [hour, minute] = time.split(':').map(Number);
+  
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '📅 Weekly Check-In',
+      body: "It's time for your weekly marriage check-in. Take time to invest in your covenant.",
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: dayOfWeek + 1, // expo-notifications uses 1-7 (Sunday-Saturday)
+      hour,
+      minute,
+    },
+  });
+  
+  return id;
+}
