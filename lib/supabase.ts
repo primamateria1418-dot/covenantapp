@@ -156,6 +156,80 @@ export type Database = {
           note?: string | null;
         };
       };
+      // ─── Journal Letters (Couples) ────────────────────────────────
+      journal_letters: {
+        Row: {
+          id: string;
+          couple_id: string;
+          author_user_id: string;
+          text: string;
+          is_private: boolean;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          couple_id: string;
+          author_user_id: string;
+          text: string;
+          is_private?: boolean;
+        };
+        Update: {
+          text?: string;
+          is_private?: boolean;
+          read_at?: string | null;
+        };
+      };
+      // ─── Time Capsules ───────────────────────────────────────────
+      time_capsules: {
+        Row: {
+          id: string;
+          couple_id: string;
+          text: string;
+          written_at: string;
+          unlock_date: string;
+          unlocked: boolean;
+        };
+        Insert: {
+          couple_id: string;
+          text: string;
+          unlock_date: string;
+        };
+        Update: {
+          text?: string;
+          unlocked?: boolean;
+        };
+      };
+      // ─── Couples ─────────────────────────────────────────────────
+      couples: {
+        Row: {
+          id: string;
+          user_id_1: string | null;
+          user_id_2: string | null;
+          name1: string;
+          name2: string;
+          anniversary: string | null;
+          couple_code: string;
+          premium: boolean;
+          premium_expiry: string | null;
+          created_at: string;
+        };
+        Insert: {
+          user_id_1: string;
+          user_id_2?: string | null;
+          name1: string;
+          name2: string;
+          anniversary: string;
+          couple_code: string;
+          premium?: boolean;
+        };
+        Update: {
+          user_id_2?: string | null;
+          name2?: string;
+          anniversary?: string;
+          premium?: boolean;
+          premium_expiry?: string | null;
+        };
+      };
     };
   };
 };
@@ -167,4 +241,142 @@ export function generateCoupleCode(): string {
   const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
   const num = Math.floor(Math.random() * 10);
   return `${adj}${num}`;
+}
+
+// ─── Get Current User's Couple ─────────────────────────────────────────────────────
+
+export async function getCoupleForUser(userId: string) {
+  // First try to find in profiles
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('couple_id')
+    .eq('id', userId)
+    .single();
+
+  if (profile?.couple_id) {
+    const { data: couple } = await supabase
+      .from('couples')
+      .select('*')
+      .eq('id', profile.couple_id)
+      .single();
+    return { couple, error: null };
+  }
+
+  // Try to find by user_id_1 or user_id_2
+  const { data: couple } = await supabase
+    .from('couples')
+    .select('*')
+    .or(`user_id_1.eq.${userId},user_id_2.eq.${userId}`)
+    .single();
+
+  return { couple, error: couple ? null : 'No couple found' };
+}
+
+// ─── Journal Letters Helpers ─────────────────────────────────────────────────────
+
+export type JournalLetter = Database['public']['Tables']['journal_letters']['Row'];
+
+export async function getLettersForCouple(coupleId: string) {
+  const { data, error } = await supabase
+    .from('journal_letters')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .order('created_at', { ascending: false });
+  return { letters: data as JournalLetter[] | null, error };
+}
+
+export async function getSpouseLetters(coupleId: string, currentUserId: string) {
+  const { data, error } = await supabase
+    .from('journal_letters')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .neq('author_user_id', currentUserId)
+    .eq('is_private', false)
+    .order('created_at', { ascending: false });
+  return { letters: data as JournalLetter[] | null, error };
+}
+
+export async function sendLetter(coupleId: string, authorUserId: string, text: string, isPrivate: boolean = false) {
+  const { data, error } = await supabase
+    .from('journal_letters')
+    .insert({
+      couple_id: coupleId,
+      author_user_id: authorUserId,
+      text,
+      is_private: isPrivate,
+    })
+    .select()
+    .single();
+  return { letter: data as JournalLetter | null, error };
+}
+
+export async function markLetterAsRead(letterId: string) {
+  const { data, error } = await supabase
+    .from('journal_letters')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', letterId)
+    .select()
+    .single();
+  return { letter: data as JournalLetter | null, error };
+}
+
+export async function reactToLetter(letterId: string) {
+  // Heart reaction - marks as read
+  return markLetterAsRead(letterId);
+}
+
+// ─── Time Capsule Helpers ─────────────────────────────────────────────────────
+
+export type TimeCapsule = Database['public']['Tables']['time_capsules']['Row'];
+
+export async function getTimeCapsules(coupleId: string) {
+  const { data, error } = await supabase
+    .from('time_capsules')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .order('unlock_date', { ascending: true });
+  return { capsules: data as TimeCapsule[] | null, error };
+}
+
+export async function getUnlockableCapsules(coupleId: string) {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('time_capsules')
+    .select('*')
+    .eq('couple_id', coupleId)
+    .lte('unlock_date', today)
+    .eq('unlocked', false)
+    .order('unlock_date', { ascending: true });
+  return { capsules: data as TimeCapsule[] | null, error };
+}
+
+export async function createTimeCapsule(coupleId: string, text: string, unlockDate: string) {
+  const { data, error } = await supabase
+    .from('time_capsules')
+    .insert({
+      couple_id: coupleId,
+      text,
+      unlock_date: unlockDate,
+      unlocked: false,
+    })
+    .select()
+    .single();
+  return { capsule: data as TimeCapsule | null, error };
+}
+
+export async function unlockTimeCapsule(capsuleId: string) {
+  const { data, error } = await supabase
+    .from('time_capsules')
+    .update({ unlocked: true })
+    .eq('id', capsuleId)
+    .select()
+    .single();
+  return { capsule: data as TimeCapsule | null, error };
+}
+
+// Helper to calculate next anniversary (1 year from now)
+export function getNextAnniversaryDate(): string {
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  return nextYear.toISOString().split('T')[0];
 }

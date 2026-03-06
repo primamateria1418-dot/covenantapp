@@ -26,8 +26,11 @@ export default function DevotionalScreen() {
   // Audio state
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackPosition, setPlaybackPosition] = useState(0);
+  const [playbackDuration] = useState(180000); // 3 minutes simulated duration
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [showPaywall, setShowPaywall] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   // Animation
   const celebrationScale = useRef(new Animated.Value(0)).current;
@@ -90,7 +93,7 @@ export default function DevotionalScreen() {
   const handlePlanSelect = (plan: CustomPlan) => {
     if (plan.free) {
       // Start the free plan
-      setSelectedPlan(plan);
+      setSelectedPlan(plan.id);
     } else {
       setShowPaywall(true);
     }

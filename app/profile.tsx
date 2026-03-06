@@ -144,6 +144,7 @@ export default function ProfileScreen() {
         { label: '🪣 Bucket List', route: '/bucketlist' as const },
         { label: '🎯 Marriage Goals', route: '/goals' as const },
         { label: '🖼️ Memory Lane', route: '/memory-lane' as const },
+        { label: '🎁 Time Capsule', route: '/time-capsule' as const },
       ].map((item) => (
         <Link key={item.route} href={item.route} asChild>
           <TouchableOpacity style={[styles.linkItem, { backgroundColor: cardBg }]}>
