@@ -8,6 +8,7 @@ The project has been converted from a Next.js template to a React Native / Expo 
 
 ## Recently Completed
 
+- [x] Built complete Prayer Journal screen with partner nudge, memory lane, prayers CRUD
 - [x] Built complete Weekly Check-In screen with header, questions, success screen
 - [x] Added Supabase database schema (13 tables with RLS policies)
 - [x] Fixed web preview: added missing assets/, expo-env.d.ts, react-native-web, react-dom
@@ -37,7 +38,7 @@ The project has been converted from a Next.js template to a React Native / Expo 
 | `app/setup.tsx` | Onboarding — name, spouse, wedding date | ✅ Ready |
 | `app/(tabs)/_layout.tsx` | Bottom tab navigator (4 tabs) | ✅ Ready |
 | `app/(tabs)/checkin.tsx` | Weekly marriage check-in with 5 questions, streak tracking, health score | ✅ Ready |
-| `app/(tabs)/prayer.tsx` | Prayer requests + verse | ✅ Ready |
+| `app/(tabs)/prayer.tsx` | Prayer Journal with partner nudge, memory lane, prayers CRUD | ✅ Ready |
 | `app/(tabs)/scripture.tsx` | Scripture verse browser | ✅ Ready |
 | `app/(tabs)/devotional.tsx` | Devotional topics + daily reading | ✅ Ready |
 | `app/auth/login.tsx` | Email/password sign in | ✅ Ready |
@@ -95,7 +96,6 @@ Active colour: `#6b3322` (brownWarm). Inactive: grey.
 
 ## Next Steps (Suggested)
 
-- [ ] Implement prayer request CRUD with Supabase
 - [ ] Implement journal entry CRUD with Supabase
 - [ ] Add photo upload to Memory Lane (expo-image-picker + expo-file-system)
 - [ ] Add push notification permission request on first launch
@@ -107,7 +107,7 @@ Active colour: `#6b3322` (brownWarm). Inactive: grey.
 
 | Date | Changes |
 |------|---------|
-| 2026-03-06 | Built complete Weekly Check-In screen — header with gradient, couple names, streak counter, health score card, 5-question card, success animation, milestone celebration, notification modal |
+| 2026-03-06 | Built complete Prayer Journal screen — header with gradient, couple names, partner nudge button (48hr cooldown), memory lane card (prayers from 1+ months ago), add prayer form with 10-prayer free limit, prayers list with answered toggle, modals for nudge/paywall/memory |
 | 2026-03-06 | Added Supabase database schema with 13 tables (profiles, couples, checkin_answers, prayers, journal_letters, bucket_list, monthly_goals, streaks, devotional_progress, time_capsules, verses, notifications_log, churches) and RLS policies |
 | 2026-03-06 | Fixed ESLint config issues — replaced incompatible flat config with .eslintrc.js, fixed 3 unused variable errors in login.tsx, signup.tsx, setup.tsx |
 | 2026-03-06 | Bootstrapped Covenant app — full Expo/RN scaffold with all screens, navigation, dark mode, TypeScript |
